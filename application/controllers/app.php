@@ -6,9 +6,20 @@ class App extends CI_Controller {
 	{
 		parent::__construct();
 
-		// Set the general timezone
+		// Set the general timezone with validation
 		$timezone = ($this->redis->get("minera_timezone")) ? $this->redis->get("minera_timezone") : 'Europe/Rome';
-		date_default_timezone_set($timezone);
+		$validTimezone = $this->_validateAndNormalizeTimezone($timezone);
+		if ($validTimezone) {
+			date_default_timezone_set($validTimezone);
+			// Update stored timezone if it was normalized
+			if ($validTimezone !== $timezone) {
+				$this->redis->set("minera_timezone", $validTimezone);
+			}
+		} else {
+			// Fallback to UTC if validation fails
+			date_default_timezone_set('UTC');
+			$this->redis->set("minera_timezone", 'UTC');
+		}
 
 	}
 	
@@ -653,8 +664,18 @@ class App extends CI_Controller {
 			$currentTimezone = $this->redis->get("minera_timezone");
 			if ($currentTimezone != $timezone)
 			{
-				date_default_timezone_set($timezone);
-				$this->util_model->setTimezone($timezone);
+				// Validate and normalize timezone identifier
+				$validTimezone = $this->_validateAndNormalizeTimezone($timezone);
+				if ($validTimezone) {
+					date_default_timezone_set($validTimezone);
+					$this->util_model->setTimezone($validTimezone);
+					$timezone = $validTimezone; // Use the normalized timezone
+				} else {
+					// If timezone is invalid, log error but don't fail completely
+					log_message('error', "Invalid timezone identifier: $timezone");
+					$this->session->set_flashdata('message', "Invalid timezone '$timezone'. Please select a valid timezone");
+					$this->session->set_flashdata('message_type', 'danger');
+				}
 			}
 			$dataObj->minera_timezone = $timezone;
 			
@@ -1425,6 +1446,61 @@ class App extends CI_Controller {
 	public function cron_stats()
 	{
 		redirect('app/cron');
+	}
+
+	/*
+	// Helper function to validate and normalize timezone identifiers
+	*/
+	private function _validateAndNormalizeTimezone($timezone)
+	{
+		// First check if the timezone is already valid
+		if (in_array($timezone, timezone_identifiers_list())) {
+			return $timezone;
+		}
+		
+		// Map common invalid GMT+/- formats to valid timezone identifiers
+		$invalidToValidMapping = [
+			'GMT+0' => 'UTC',
+			'GMT-0' => 'UTC', 
+			'GMT0' => 'UTC',
+			'GMT' => 'UTC',
+			'GMT+1' => 'Europe/Berlin',
+			'GMT+2' => 'Europe/Athens',
+			'GMT+3' => 'Europe/Moscow',
+			'GMT+4' => 'Asia/Dubai',
+			'GMT+5' => 'Asia/Karachi',
+			'GMT+6' => 'Asia/Dhaka',
+			'GMT+7' => 'Asia/Bangkok',
+			'GMT+8' => 'Asia/Singapore',
+			'GMT+9' => 'Asia/Tokyo',
+			'GMT+10' => 'Australia/Sydney',
+			'GMT+11' => 'Pacific/Auckland',
+			'GMT+12' => 'Pacific/Auckland',
+			'GMT-1' => 'Atlantic/Azores',
+			'GMT-2' => 'Atlantic/South_Georgia',
+			'GMT-3' => 'America/Sao_Paulo',
+			'GMT-4' => 'America/New_York',
+			'GMT-5' => 'America/New_York',
+			'GMT-6' => 'America/Chicago',
+			'GMT-7' => 'America/Denver',
+			'GMT-8' => 'America/Los_Angeles',
+			'GMT-9' => 'America/Anchorage',
+			'GMT-10' => 'Pacific/Honolulu',
+			'GMT-11' => 'Pacific/Pago_Pago',
+			'GMT-12' => 'Pacific/Kwajalein',
+		];
+		
+		// Check if we have a mapping for this invalid timezone
+		if (isset($invalidToValidMapping[$timezone])) {
+			$mappedTimezone = $invalidToValidMapping[$timezone];
+			// Verify the mapped timezone is valid
+			if (in_array($mappedTimezone, timezone_identifiers_list())) {
+				return $mappedTimezone;
+			}
+		}
+		
+		// If no valid mapping found, return false
+		return false;
 	}
 
 }
