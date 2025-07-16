@@ -18,28 +18,31 @@
     "tests"
   ],
   "dependencies": {
-    "blueimp-file-upload": "~9.10.0",
-    "bootstrap-switch": "~3.3.2",
-    "bootstrap": "~3.3.4",
+    "blueimp-file-upload": "~9.10.7",
+    "bootstrap-switch": "~3.3.4",
+    "bootstrap": "~3.3.7",
     "datatables-bootstrap3-plugin": "~0.4.0",
-    "ion.rangeSlider": "~2.0.10",
+    "ion.rangeSlider": "~2.0.13",
     "ionicons": "~2.0.1",
-    "jquery-knob": "~1.2.11",
+    "jquery-knob": "~1.2.13",
     "jquery-scrollspy-thesmart": "~0.1.3",
     "jquery-ui": "~1.11.4",
     "jquery-validate": "~1.13.1",
-    "jquery.iframe-transport": "~1.0.0",
-    "jquery.scrollTo": "~2.1.1",
-    "jquery.slimscroll": "~1.3.6",
+    "jquery.iframe-transport": "~1.0.1",
+    "jquery.scrollTo": "~2.1.3",
+    "jquery.slimscroll": "~1.3.8",
     "jquery": "~2.1.4",
     "jqueryui-touch-punch": "*",
     "md5": "~0.3.0",
-    "momentjs": "~2.10.3",
+    "momentjs": "~2.10.6",
     "morrisjs": "~0.5.1",
     "raphael": "~2.1.4",
     "underscore": "~1.8.3",
     "font-awesome": "~4.3.0",
-    "datatables": "~1.10.7",
-    "js-cookie": "^2.2.0"
+    "datatables": "~1.10.21",
+    "js-cookie": "^2.2.1"
+  },
+  "resolutions": {
+    "jquery": "~2.1.4"
   }
 }
