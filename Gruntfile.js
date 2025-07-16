@@ -68,6 +68,11 @@ module.exports = function(grunt) {
 				}
 			}
 		},
+		exec: {
+			test: {
+				cmd: 'npm test'
+			}
+		},
 		concurrent: {
 			default: ['watch'],
 			debug: ['watch'],
@@ -158,6 +163,9 @@ module.exports = function(grunt) {
 	// Lint task(s).
 	//grunt.registerTask('lint', ['jshint', 'csslint']);
 	grunt.registerTask('lint', ['jshint']);
+
+	// Test task(s).
+	grunt.registerTask('test', ['lint', 'exec:test']);
 
 	grunt.registerTask('copy:production', ['copy']);
 

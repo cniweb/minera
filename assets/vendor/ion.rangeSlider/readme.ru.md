@@ -1,4 +1,4 @@
-# Ion.Range Slider 2.0.10
+# Ion.Range Slider 2.0.13
 
 [![](https://pledgie.com/campaigns/25694.png?skin_name=chrome)](https://pledgie.com/campaigns/25694)
 
@@ -6,9 +6,10 @@
 
 Удобный, гибкий и отзывчивый слайдер диапазонов
 * <a href="http://ionden.com/a/plugins/ion.rangeSlider/index.html">Страница проекта и демо</a>
-* <a href="http://ionden.com/a/plugins/ion.rangeSlider/ion.rangeSlider-2.0.10.zip">Download ion.rangeSlider-2.0.10.zip</a>
+* <a href="http://ionden.com/a/plugins/ion.rangeSlider/ion.rangeSlider-2.0.13.zip">Download ion.rangeSlider-2.0.13.zip</a>
 
 ***
+*<sup><a href="https://github.com/IonDen/ion.rangeSlider/blob/master/designer.md">Ищу дизайнера, создать логотип для проекта</a></sup>*
 
 ## Описание
 * Ion.RangeSlider — классный, удобный, отзывчивый и легко настраиваемый слайдер диапазонов
@@ -393,10 +394,10 @@ Obj: {
     "slider": object,   // jQuery-ссылка на контейнер слайдера
     "min": 0,           // значение MIN
     "max": 1000,        // значение MAX
-    "from": 100,        // значение ОТ
+    "from": 100,        // значение ОТ (значение левого или единственного ползунка)
     "from_percent": 10, // значение ОТ в процентах
     "from_value": 0,    // индекс ОТ массива values (если используется)
-    "to": 900,          // значение ДО
+    "to": 900,          // значение ДО (значение правого ползунка)
     "to_percent": 90,   // значение ДО в процентах
     "to_value": 0       // индекс ДО массива values (если используется)
 }
