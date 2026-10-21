@@ -15,8 +15,7 @@
     "tag": "v0.3.0",
     "commit": "f2ca0553ccafc53349a28e17f589092a9a0c5d6d"
   },
-  "_source": "git://github.com/emn178/js-md5.git",
+  "_source": "https://github.com/emn178/js-md5.git",
   "_target": "~0.3.0",
-  "_originalSource": "md5",
-  "_direct": true
+  "_originalSource": "md5"
 }

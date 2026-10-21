@@ -1,301 +1,229 @@
 /*
- * JavaScript Load Image 1.10.0
+ * JavaScript Load Image
  * https://github.com/blueimp/JavaScript-Load-Image
  *
  * Copyright 2011, Sebastian Tschan
  * https://blueimp.net
  *
  * Licensed under the MIT license:
- * http://www.opensource.org/licenses/MIT
+ * https://opensource.org/licenses/MIT
  */
 
-/*jslint nomen: true */
-/*global define, window, document, URL, webkitURL, Blob, File, FileReader */
+/* global define, module, Promise */
 
-(function ($) {
-    'use strict';
+;(function ($) {
+  'use strict'
 
-    // Loads an image for a given File object.
-    // Invokes the callback with an img or optional canvas
-    // element (if supported by the browser) as parameter:
-    var loadImage = function (file, callback, options) {
-            var img = document.createElement('img'),
-                url,
-                oUrl;
-            img.onerror = callback;
-            img.onload = function () {
-                if (oUrl && !(options && options.noRevoke)) {
-                    loadImage.revokeObjectURL(oUrl);
-                }
-                if (callback) {
-                    callback(loadImage.scale(img, options));
-                }
-            };
-            if (loadImage.isInstanceOf('Blob', file) ||
-                    // Files are also Blob instances, but some browsers
-                    // (Firefox 3.6) support the File API but not Blobs:
-                    loadImage.isInstanceOf('File', file)) {
-                url = oUrl = loadImage.createObjectURL(file);
-                // Store the file type for resize processing:
-                img._type = file.type;
-            } else if (typeof file === 'string') {
-                url = file;
-                if (options && options.crossOrigin) {
-                    img.crossOrigin = options.crossOrigin;
-                }
-            } else {
-                return false;
-            }
-            if (url) {
-                img.src = url;
-                return img;
-            }
-            return loadImage.readFile(file, function (e) {
-                var target = e.target;
-                if (target && target.result) {
-                    img.src = target.result;
-                } else {
-                    if (callback) {
-                        callback(e);
-                    }
-                }
-            });
-        },
-        // The check for URL.revokeObjectURL fixes an issue with Opera 12,
-        // which provides URL.createObjectURL but doesn't properly implement it:
-        urlAPI = (window.createObjectURL && window) ||
-            (window.URL && URL.revokeObjectURL && URL) ||
-            (window.webkitURL && webkitURL);
+  var urlAPI = $.URL || $.webkitURL
 
-    loadImage.isInstanceOf = function (type, obj) {
-        // Cross-frame instanceof check
-        return Object.prototype.toString.call(obj) === '[object ' + type + ']';
-    };
+  /**
+   * Creates an object URL for a given File object.
+   *
+   * @param {Blob} blob Blob object
+   * @returns {string|boolean} Returns object URL if API exists, else false.
+   */
+  function createObjectURL(blob) {
+    return urlAPI ? urlAPI.createObjectURL(blob) : false
+  }
 
-    // Transform image coordinates, allows to override e.g.
-    // the canvas orientation based on the orientation option,
-    // gets canvas, options passed as arguments:
-    loadImage.transformCoordinates = function () {
-        return;
-    };
+  /**
+   * Revokes a given object URL.
+   *
+   * @param {string} url Blob object URL
+   * @returns {undefined|boolean} Returns undefined if API exists, else false.
+   */
+  function revokeObjectURL(url) {
+    return urlAPI ? urlAPI.revokeObjectURL(url) : false
+  }
 
-    // Returns transformed options, allows to override e.g.
-    // maxWidth, maxHeight and crop options based on the aspectRatio.
-    // gets img, options passed as arguments:
-    loadImage.getTransformedOptions = function (img, options) {
-        var aspectRatio = options.aspectRatio,
-            newOptions,
-            i,
-            width,
-            height;
-        if (!aspectRatio) {
-            return options;
-        }
-        newOptions = {};
-        for (i in options) {
-            if (options.hasOwnProperty(i)) {
-                newOptions[i] = options[i];
-            }
-        }
-        newOptions.crop = true;
-        width = img.naturalWidth || img.width;
-        height = img.naturalHeight || img.height;
-        if (width / height > aspectRatio) {
-            newOptions.maxWidth = height * aspectRatio;
-            newOptions.maxHeight = height;
-        } else {
-            newOptions.maxWidth = width;
-            newOptions.maxHeight = width / aspectRatio;
-        }
-        return newOptions;
-    };
-
-    // Canvas render method, allows to override the
-    // rendering e.g. to work around issues on iOS:
-    loadImage.renderImageToCanvas = function (
-        canvas,
-        img,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        destX,
-        destY,
-        destWidth,
-        destHeight
-    ) {
-        canvas.getContext('2d').drawImage(
-            img,
-            sourceX,
-            sourceY,
-            sourceWidth,
-            sourceHeight,
-            destX,
-            destY,
-            destWidth,
-            destHeight
-        );
-        return canvas;
-    };
-
-    // This method is used to determine if the target image
-    // should be a canvas element:
-    loadImage.hasCanvasOption = function (options) {
-        return options.canvas || options.crop || options.aspectRatio;
-    };
-
-    // Scales and/or crops the given image (img or canvas HTML element)
-    // using the given options.
-    // Returns a canvas object if the browser supports canvas
-    // and the hasCanvasOption method returns true or a canvas
-    // object is passed as image, else the scaled image:
-    loadImage.scale = function (img, options) {
-        options = options || {};
-        var canvas = document.createElement('canvas'),
-            useCanvas = img.getContext ||
-                (loadImage.hasCanvasOption(options) && canvas.getContext),
-            width = img.naturalWidth || img.width,
-            height = img.naturalHeight || img.height,
-            destWidth = width,
-            destHeight = height,
-            maxWidth,
-            maxHeight,
-            minWidth,
-            minHeight,
-            sourceWidth,
-            sourceHeight,
-            sourceX,
-            sourceY,
-            tmp,
-            scaleUp = function () {
-                var scale = Math.max(
-                    (minWidth || destWidth) / destWidth,
-                    (minHeight || destHeight) / destHeight
-                );
-                if (scale > 1) {
-                    destWidth = destWidth * scale;
-                    destHeight = destHeight * scale;
-                }
-            },
-            scaleDown = function () {
-                var scale = Math.min(
-                    (maxWidth || destWidth) / destWidth,
-                    (maxHeight || destHeight) / destHeight
-                );
-                if (scale < 1) {
-                    destWidth = destWidth * scale;
-                    destHeight = destHeight * scale;
-                }
-            };
-        if (useCanvas) {
-            options = loadImage.getTransformedOptions(img, options);
-            sourceX = options.left || 0;
-            sourceY = options.top || 0;
-            if (options.sourceWidth) {
-                sourceWidth = options.sourceWidth;
-                if (options.right !== undefined && options.left === undefined) {
-                    sourceX = width - sourceWidth - options.right;
-                }
-            } else {
-                sourceWidth = width - sourceX - (options.right || 0);
-            }
-            if (options.sourceHeight) {
-                sourceHeight = options.sourceHeight;
-                if (options.bottom !== undefined && options.top === undefined) {
-                    sourceY = height - sourceHeight - options.bottom;
-                }
-            } else {
-                sourceHeight = height - sourceY - (options.bottom || 0);
-            }
-            destWidth = sourceWidth;
-            destHeight = sourceHeight;
-        }
-        maxWidth = options.maxWidth;
-        maxHeight = options.maxHeight;
-        minWidth = options.minWidth;
-        minHeight = options.minHeight;
-        if (useCanvas && maxWidth && maxHeight && options.crop) {
-            destWidth = maxWidth;
-            destHeight = maxHeight;
-            tmp = sourceWidth / sourceHeight - maxWidth / maxHeight;
-            if (tmp < 0) {
-                sourceHeight = maxHeight * sourceWidth / maxWidth;
-                if (options.top === undefined && options.bottom === undefined) {
-                    sourceY = (height - sourceHeight) / 2;
-                }
-            } else if (tmp > 0) {
-                sourceWidth = maxWidth * sourceHeight / maxHeight;
-                if (options.left === undefined && options.right === undefined) {
-                    sourceX = (width - sourceWidth) / 2;
-                }
-            }
-        } else {
-            if (options.contain || options.cover) {
-                minWidth = maxWidth = maxWidth || minWidth;
-                minHeight = maxHeight = maxHeight || minHeight;
-            }
-            if (options.cover) {
-                scaleDown();
-                scaleUp();
-            } else {
-                scaleUp();
-                scaleDown();
-            }
-        }
-        if (useCanvas) {
-            canvas.width = destWidth;
-            canvas.height = destHeight;
-            loadImage.transformCoordinates(
-                canvas,
-                options
-            );
-            return loadImage.renderImageToCanvas(
-                canvas,
-                img,
-                sourceX,
-                sourceY,
-                sourceWidth,
-                sourceHeight,
-                0,
-                0,
-                destWidth,
-                destHeight
-            );
-        }
-        img.width = destWidth;
-        img.height = destHeight;
-        return img;
-    };
-
-    loadImage.createObjectURL = function (file) {
-        return urlAPI ? urlAPI.createObjectURL(file) : false;
-    };
-
-    loadImage.revokeObjectURL = function (url) {
-        return urlAPI ? urlAPI.revokeObjectURL(url) : false;
-    };
-
-    // Loads a given File object via FileReader interface,
-    // invokes the callback with the event object (load or error).
-    // The result can be read via event.target.result:
-    loadImage.readFile = function (file, callback, method) {
-        if (window.FileReader) {
-            var fileReader = new FileReader();
-            fileReader.onload = fileReader.onerror = callback;
-            method = method || 'readAsDataURL';
-            if (fileReader[method]) {
-                fileReader[method](file);
-                return fileReader;
-            }
-        }
-        return false;
-    };
-
-    if (typeof define === 'function' && define.amd) {
-        define(function () {
-            return loadImage;
-        });
-    } else {
-        $.loadImage = loadImage;
+  /**
+   * Helper function to revoke an object URL
+   *
+   * @param {string} url Blob Object URL
+   * @param {object} [options] Options object
+   */
+  function revokeHelper(url, options) {
+    if (url && url.slice(0, 5) === 'blob:' && !(options && options.noRevoke)) {
+      revokeObjectURL(url)
     }
-}(this));
+  }
+
+  /**
+   * Loads a given File object via FileReader interface.
+   *
+   * @param {Blob} file Blob object
+   * @param {Function} onload Load event callback
+   * @param {Function} [onerror] Error/Abort event callback
+   * @param {string} [method=readAsDataURL] FileReader method
+   * @returns {FileReader|boolean} Returns FileReader if API exists, else false.
+   */
+  function readFile(file, onload, onerror, method) {
+    if (!$.FileReader) return false
+    var reader = new FileReader()
+    reader.onload = function () {
+      onload.call(reader, this.result)
+    }
+    if (onerror) {
+      reader.onabort = reader.onerror = function () {
+        onerror.call(reader, this.error)
+      }
+    }
+    var readerMethod = reader[method || 'readAsDataURL']
+    if (readerMethod) {
+      readerMethod.call(reader, file)
+      return reader
+    }
+  }
+
+  /**
+   * Cross-frame instanceof check.
+   *
+   * @param {string} type Instance type
+   * @param {object} obj Object instance
+   * @returns {boolean} Returns true if the object is of the given instance.
+   */
+  function isInstanceOf(type, obj) {
+    // Cross-frame instanceof check
+    return Object.prototype.toString.call(obj) === '[object ' + type + ']'
+  }
+
+  /**
+   * @typedef { HTMLImageElement|HTMLCanvasElement } Result
+   */
+
+  /**
+   * Loads an image for a given File object.
+   *
+   * @param {Blob|string} file Blob object or image URL
+   * @param {Function|object} [callback] Image load event callback or options
+   * @param {object} [options] Options object
+   * @returns {HTMLImageElement|FileReader|Promise<Result>} Object
+   */
+  function loadImage(file, callback, options) {
+    /**
+     * Promise executor
+     *
+     * @param {Function} resolve Resolution function
+     * @param {Function} reject Rejection function
+     * @returns {HTMLImageElement|FileReader} Object
+     */
+    function executor(resolve, reject) {
+      var img = document.createElement('img')
+      var url
+      /**
+       * Callback for the fetchBlob call.
+       *
+       * @param {HTMLImageElement|HTMLCanvasElement} img Error object
+       * @param {object} data Data object
+       * @returns {undefined} Undefined
+       */
+      function resolveWrapper(img, data) {
+        if (resolve === reject) {
+          // Not using Promises
+          if (resolve) resolve(img, data)
+          return
+        } else if (img instanceof Error) {
+          reject(img)
+          return
+        }
+        data = data || {} // eslint-disable-line no-param-reassign
+        data.image = img
+        resolve(data)
+      }
+      /**
+       * Callback for the fetchBlob call.
+       *
+       * @param {Blob} blob Blob object
+       * @param {Error} err Error object
+       */
+      function fetchBlobCallback(blob, err) {
+        if (err && $.console) console.log(err) // eslint-disable-line no-console
+        if (blob && isInstanceOf('Blob', blob)) {
+          file = blob // eslint-disable-line no-param-reassign
+          url = createObjectURL(file)
+        } else {
+          url = file
+          if (options && options.crossOrigin) {
+            img.crossOrigin = options.crossOrigin
+          }
+        }
+        img.src = url
+      }
+      img.onerror = function (event) {
+        revokeHelper(url, options)
+        if (reject) reject.call(img, event)
+      }
+      img.onload = function () {
+        revokeHelper(url, options)
+        var data = {
+          originalWidth: img.naturalWidth || img.width,
+          originalHeight: img.naturalHeight || img.height
+        }
+        try {
+          loadImage.transform(img, options, resolveWrapper, file, data)
+        } catch (error) {
+          if (reject) reject(error)
+        }
+      }
+      if (typeof file === 'string') {
+        if (loadImage.requiresMetaData(options)) {
+          loadImage.fetchBlob(file, fetchBlobCallback, options)
+        } else {
+          fetchBlobCallback()
+        }
+        return img
+      } else if (isInstanceOf('Blob', file) || isInstanceOf('File', file)) {
+        url = createObjectURL(file)
+        if (url) {
+          img.src = url
+          return img
+        }
+        return readFile(
+          file,
+          function (url) {
+            img.src = url
+          },
+          reject
+        )
+      }
+    }
+    if ($.Promise && typeof callback !== 'function') {
+      options = callback // eslint-disable-line no-param-reassign
+      return new Promise(executor)
+    }
+    return executor(callback, callback)
+  }
+
+  // Determines if metadata should be loaded automatically.
+  // Requires the load image meta extension to load metadata.
+  loadImage.requiresMetaData = function (options) {
+    return options && options.meta
+  }
+
+  // If the callback given to this function returns a blob, it is used as image
+  // source instead of the original url and overrides the file argument used in
+  // the onload and onerror event callbacks:
+  loadImage.fetchBlob = function (url, callback) {
+    callback()
+  }
+
+  loadImage.transform = function (img, options, callback, file, data) {
+    callback(img, data)
+  }
+
+  loadImage.global = $
+  loadImage.readFile = readFile
+  loadImage.isInstanceOf = isInstanceOf
+  loadImage.createObjectURL = createObjectURL
+  loadImage.revokeObjectURL = revokeObjectURL
+
+  if (typeof define === 'function' && define.amd) {
+    define(function () {
+      return loadImage
+    })
+  } else if (typeof module === 'object' && module.exports) {
+    module.exports = loadImage
+  } else {
+    $.loadImage = loadImage
+  }
+})((typeof window !== 'undefined' && window) || this)

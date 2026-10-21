@@ -6,3 +6,8 @@ minera-bin/cgminerStartupScript
 assets/vendor/*
 node_modules
 *.log
+
+# Testing artifacts
+.grunt/
+_SpecRunner.html
+coverage/
